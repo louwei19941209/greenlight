@@ -1,19 +1,25 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
-	"maps"
+	"greenlight/internal/data"
 )
 
 func main() {
-	m1 := map[string]int{
-		"one": 1,
-		"two": 2,
+	var input struct {
+		Title   string       `json:"title"`
+		Year    int32        `json:"year"`
+		Runtime data.Runtime `json:"runtime"`
+		Genres  []string     `json:"genres"`
 	}
 
-	m1s := maps.All(m1)
+	input.Title = "a"
+	input.Year = 2002
+	input.Year = 32
+	input.Genres = []string{"a", "b"}
 
-	for k, v := range m1s {
-		fmt.Println(k, v)
-	}
+	marshal, _ := json.Marshal(input)
+	fmt.Println(string(marshal))
+
 }
