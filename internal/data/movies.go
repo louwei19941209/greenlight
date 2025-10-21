@@ -115,12 +115,30 @@ SET title = $2,
 	runtime=$4,
 	genres=$5,
 	version=version+1 
-WHERE id=$1
+WHERE id=$1 and version = $6
 RETURNING version`
 
-	args := []any{movie.ID, movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
+	args := []any{
+		movie.ID,
+		movie.Title,
+		movie.Year,
+		movie.Runtime,
+		pq.Array(movie.Genres),
+		movie.Version,
+	}
 
-	return m.DB.QueryRow(query, args...).Scan(&movie.Version)
+	err := m.DB.QueryRow(query, args...).Scan(&movie.Version)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return ErrEditConflict
+		default:
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Add a placeholder method for deleting a specific record from the movies table.
