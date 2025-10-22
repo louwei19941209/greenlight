@@ -1,6 +1,7 @@
 package data
 
 import (
+	"context"
 	"database/sql"
 	"encoding/json"
 	"errors"
@@ -69,7 +70,11 @@ VALUES ($1,$2,$3,$4) RETURNING id,created_at,version`
 
 	args := []any{movie.Title, movie.Year, movie.Runtime, pq.Array(movie.Genres)}
 
-	return m.DB.QueryRow(query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
+	// Create a context with a 3-second timeout.
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	return m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.ID, &movie.CreatedAt, &movie.Version)
 
 }
 
@@ -82,7 +87,10 @@ func (m MovieModel) Get(id int64) (*Movie, error) {
 
 	var movie Movie
 
-	err := m.DB.QueryRow(`SELECT id, created_at, title, year,
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, `SELECT id, created_at, title, year,
        runtime, genres, version FROM movies WHERE id =$1`, id).Scan(
 		&movie.ID,
 		&movie.CreatedAt,
@@ -115,7 +123,7 @@ SET title = $2,
 	runtime=$4,
 	genres=$5,
 	version=version+1 
-WHERE id=$1 and version = $6
+WHERE id=$1 AND version = $6
 RETURNING version`
 
 	args := []any{
@@ -127,7 +135,10 @@ RETURNING version`
 		movie.Version,
 	}
 
-	err := m.DB.QueryRow(query, args...).Scan(&movie.Version)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&movie.Version)
 
 	if err != nil {
 		switch {
@@ -150,7 +161,10 @@ func (m MovieModel) Delete(id int64) error {
 	// language=postgresql
 	query := `DELETE FROM movies WHERE id = $1`
 
-	result, err := m.DB.Exec(query, id)
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	result, err := m.DB.ExecContext(ctx, query, id)
 	if err != nil {
 		return err
 	}
