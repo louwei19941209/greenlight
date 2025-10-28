@@ -1,15 +1,18 @@
 package main
 
-import "fmt"
+import (
+	"fmt"
+	"time"
+)
 
 func main() {
-
-	S("")
 
 }
 
 func A(a *int, b int) {
-	fmt.Println(*a + b)
+	start := time.Now()
+	time.Sleep(3 * time.Second)
+	fmt.Println(time.Since(start))
 }
 
 func S(a string) {

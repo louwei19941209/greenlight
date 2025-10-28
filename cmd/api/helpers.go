@@ -28,7 +28,6 @@ func (app *application) readIdParam(r *http.Request) (int64, error) {
 }
 
 func (app *application) writeJSON(w http.ResponseWriter, status int, data any, headers http.Header) error {
-
 	js, err := json.MarshalIndent(data, "", "\t")
 	if err != nil {
 		return err
@@ -39,8 +38,6 @@ func (app *application) writeJSON(w http.ResponseWriter, status int, data any, h
 	for key, value := range headers {
 		w.Header()[key] = value
 	}
-
-	//maps.Insert(w.Header(), maps.All(headers))
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(status)
