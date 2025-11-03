@@ -15,7 +15,7 @@ type User struct {
 	CreateAt  time.Time `json:"create_at"`
 	Name      string    `json:"name"`
 	Email     string    `json:"email"`
-	Password  password  `json:"password"`
+	Password  password  `json:"-"`
 	Activated bool      `json:"activated"`
 	Version   int       `json:"-"`
 }
@@ -96,7 +96,7 @@ RETURNING version
 
 	args := []any{user.Name, user.Email, user.Password.hash, user.Activated}
 
-	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreateAt, &user.Version)
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
 	if err != nil {
 		switch {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
