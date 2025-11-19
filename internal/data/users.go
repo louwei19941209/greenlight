@@ -2,6 +2,7 @@ package data
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
 	"errors"
 	"greenlight/internal/validator"
@@ -9,6 +10,8 @@ import (
 
 	"golang.org/x/crypto/bcrypt"
 )
+
+var AnonymousUser = &User{}
 
 type User struct {
 	ID        int64     `json:"id"`
@@ -89,14 +92,14 @@ func (m UserModel) Insert(user *User) error {
 	//language=postgresql
 	query := `INSERT INTO users(name, email, password_hash, activated) 
 values ($1,$2,$3,$4)
-RETURNING version
+RETURNING id,create_at,version
 `
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
 
 	args := []any{user.Name, user.Email, user.Password.hash, user.Activated}
 
-	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.Version)
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(&user.ID, &user.CreateAt, &user.Version)
 	if err != nil {
 		switch {
 		case err.Error() == `pq: duplicate key value violates unique constraint "users_email_key"`:
@@ -110,7 +113,7 @@ RETURNING version
 
 func (m UserModel) GetByEmail(email string) (*User, error) {
 	// language=postgresql
-	query := `SELECT id,name,email,password_hash,activated,version FROM users
+	query := `SELECT id,create_at,name,email,password_hash,activated,version FROM users
 WHERE email = $1`
 
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
@@ -119,7 +122,9 @@ WHERE email = $1`
 	var user User
 	err := m.DB.QueryRowContext(ctx, query, email).Scan(
 		&user.ID,
+		&user.CreateAt,
 		&user.Name,
+		&user.Email,
 		&user.Password.hash,
 		&user.Activated,
 		&user.Version)
@@ -167,4 +172,56 @@ func (m UserModel) Update(user *User) error {
 	}
 	return nil
 
+}
+
+func (m UserModel) GetForToken(tokenScope string, tokenPlaintext string) (*User, error) {
+	// language=postgresql
+	query := `
+	select users.id, 
+	       users.create_at, 
+	       users.name, 
+	       users.email, 
+	       users.password_hash, 
+	       users.activated, 
+	       users.version 
+	from users
+		inner join tokens on users.id = tokens.user_id
+		where tokens.hash = $1
+		and tokens.scope = $2
+		and tokens.expiry > $3
+`
+
+	tokenHash := sha256.Sum256([]byte(tokenPlaintext))
+
+	args := []any{tokenHash[:], tokenScope, time.Now()}
+
+	var user User
+	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+	defer cancel()
+
+	err := m.DB.QueryRowContext(ctx, query, args...).Scan(
+		&user.ID,
+		&user.CreateAt,
+		&user.Name,
+		&user.Email,
+		&user.Password.hash,
+		&user.Activated,
+		&user.Version,
+	)
+
+	if err != nil {
+		switch {
+		case errors.Is(err, sql.ErrNoRows):
+			return nil, ErrRecordNotFound
+		default:
+			return nil, err
+		}
+	}
+
+	return &user, nil
+
+}
+
+func (u *User) IsAnonymous() bool {
+	return u == AnonymousUser
 }
