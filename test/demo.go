@@ -3,27 +3,16 @@ package main
 import (
 	"embed"
 	"fmt"
-	"sync"
 	"time"
 )
 
 var templateFS embed.FS
 
 func main() {
-	var wg sync.WaitGroup
-
-	for i := 1; i < 5; i++ {
-		wg.Add(1)
-
-		go func() {
-			defer wg.Done()
-			fmt.Println("Hello from a goroutine")
-		}()
+	b := C()
+	for _, k := range *b {
+		fmt.Println(k)
 	}
-
-	wg.Wait()
-
-	fmt.Println("all goroutines finished!")
 
 }
 
@@ -32,6 +21,20 @@ func A(a *int, b int) {
 	time.Sleep(3 * time.Second)
 	fmt.Println(time.Since(start))
 
+}
+
+func B(i, k int) *bool {
+	var b bool
+	b = i > k
+	return &b
+}
+
+func C() *[]int {
+	a := 1
+	b := 2
+	c := 3
+	var d = []int{a, b, c}
+	return &d
 }
 
 func S(a string) {

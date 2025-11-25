@@ -3,12 +3,14 @@ package main
 import (
 	"context"
 	"database/sql"
+	"expvar"
 	"flag"
 	"fmt"
 	"greenlight/internal/data"
 	"greenlight/internal/mailer"
 	"log/slog"
 	"os"
+	"runtime"
 	"sync"
 	"time"
 
@@ -62,7 +64,14 @@ func main() {
 	flag.StringVar(&cfg.smtp.password, "smtp-password", "ktqyemhdbkfhbeeb", "SMTP password")
 	flag.StringVar(&cfg.smtp.sender, "smtp-sender", "546929255@qq.com", "SMTP sender")
 
+	displayVersion := flag.Bool("version", false, "Display version and exit")
+
 	flag.Parse()
+
+	if *displayVersion {
+		fmt.Printf("Version:\t%s\n", version)
+		os.Exit(0)
+	}
 
 	fmt.Printf("port: %d \n", cfg.port)
 	fmt.Printf("environment: %s\n", cfg.env)
@@ -75,6 +84,23 @@ func main() {
 		os.Exit(1)
 	}
 	defer db.Close()
+
+	expvar.NewString("version").Set(version)
+
+	// Publish the number of active goroutines.
+	expvar.Publish("goroutines", expvar.Func(func() any {
+		return runtime.NumGoroutine()
+	}))
+
+	// Publish the database connection pool statistics.
+	expvar.Publish("database", expvar.Func(func() any {
+		return db.Stats()
+	}))
+
+	// Publish the current Unix timestamp.
+	expvar.Publish("timestamp", expvar.Func(func() any {
+		return time.Now().Unix()
+	}))
 
 	app := &application{
 		config: cfg,
